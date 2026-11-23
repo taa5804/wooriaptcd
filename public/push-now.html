@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#059669">
-<title>에너젠마트 실제 PWA 웹푸시 즉시 발송기</title>
+<title>에너젠마트 상단바 지속 고정 웹푸시 즉시 발송기</title>
 <style>
 *{box-sizing:border-box}
 body{
@@ -13,7 +13,7 @@ body{
   font-family:-apple-system,BlinkMacSystemFont,"Pretendard",sans-serif;
 }
 .card{
-  width:100%; max-width:420px; background:#1e293b; border:2px solid #10b981;
+  width:100%; max-width:440px; background:#1e293b; border:2px solid #10b981;
   border-radius:20px; padding:28px 22px; text-align:center;
   box-shadow:0 20px 50px rgba(0,0,0,0.6);
 }
@@ -21,7 +21,7 @@ body{
   display:inline-block; background:#facc15; color:#000; font-size:12px;
   font-weight:900; padding:4px 12px; border-radius:999px; margin-bottom:12px;
 }
-h1{ margin:0 0 10px; font-size:22px; font-weight:900; line-height:1.35; }
+h1{ margin:0 0 10px; font-size:22px; font-weight:900; line-height:1.35; color:#34d399; }
 p{ margin:0 0 20px; font-size:14.5px; color:#cbd5e1; line-height:1.6; }
 .btn{
   width:100%; min-height:56px; border:0; border-radius:12px;
@@ -37,11 +37,11 @@ p{ margin:0 0 20px; font-size:14.5px; color:#cbd5e1; line-height:1.6; }
 </head>
 <body>
 <div class="card">
-  <span class="badge">통신3사 무경유 · 전화번호 없는 순수 PWA 웹푸시</span>
-  <h1>🛒 에너젠마트 실제 웹푸시<br>휴대폰 상단 즉시 발송</h1>
-  <p>페이지 접속 즉시(또는 아래 버튼 터치 즉시) <b>구글 FCM 푸시 서버</b>를 통해 휴대폰 맨 위 알림창으로 <b>[에너젠마트 주말 초특가 세일]</b> 웹푸시가 실제 발송됩니다.</p>
-  <button id="fireBtn" class="btn" onclick="fireNow()">🔔 지금 에너젠마트 웹푸시 다시 쏘기</button>
-  <div id="statusBox" class="status">⏳ 에너젠마트 실제 웹푸시를 휴대폰 상단으로 발송 중입니다...</div>
+  <span class="badge">상단바 지속 고정 · 눌러도 사라지지 않는 신기술</span>
+  <h1>🛒 에너젠마트 상단바 고정 알림<br>휴대폰 즉시 팝업</h1>
+  <p>화면에 뜨는 <b>[알림 허용]</b>을 누르시면, 휴대폰 맨 위 알림창에 <b>[에너젠마트 주말 초특가 세일]</b> 알림이 딱 박히며, <b>터치해서 전단지를 열어보아도 상단바에서 절대 사라지지 않습니다!</b></p>
+  <button id="fireBtn" class="btn" onclick="fireNow()">🔔 상단바 고정 알림 다시 쏘기</button>
+  <div id="statusBox" class="status">⏳ 상단바 지속 고정 알림을 띄우는 중입니다...</div>
 </div>
 
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
@@ -59,43 +59,44 @@ const FIREBASE_CONFIG = {
   appId: "1:101299637796:web:cb69372592026b7aa192b1"
 };
 
-if (!firebase.apps.length) {
-  firebase.initializeApp(FIREBASE_CONFIG);
-}
+firebase.initializeApp(FIREBASE_CONFIG);
 
 async function fireNow() {
   const st = document.getElementById("statusBox");
-  const btn = document.getElementById("fireBtn");
-  st.textContent = "⏳ 구글 FCM 웹푸시 채널 연결 및 즉시 발송 중...";
+  st.innerHTML = "⏳ 알림 권한 확인 및 상단바 고정 알림 띄우는 중...";
 
   try {
+    if (!("Notification" in window)) {
+      st.innerHTML = "⚠️ 이 브라우저는 알림을 지원하지 않습니다.";
+      return;
+    }
+
     let perm = Notification.permission;
     if (perm !== "granted") {
       perm = await Notification.requestPermission();
-      if (perm !== "granted") {
-        st.textContent = "⚠️ 브라우저 [알림 허용]을 눌러주셔야 상단에 웹푸시가 뜹니다.";
-        return;
-      }
+    }
+    if (perm !== "granted") {
+      st.innerHTML = "⚠️ 알림 권한이 허용되지 않았습니다. 브라우저 설정에서 [알림 허용]을 눌러주십시오.";
+      return;
     }
 
-    await navigator.serviceWorker.register("/firebase-messaging-sw.js", { scope: "/", updateViaCache: "none" });
-    const reg = await navigator.serviceWorker.ready;
-    await reg.update();
+    const reg = await navigator.serviceWorker.register("/firebase-messaging-sw.js?v=" + Date.now());
+    await navigator.serviceWorker.ready;
 
-    // 1. 즉시 네이티브 ServiceWorker 웹푸시 알림 팝업 (1초 내 즉시 울림!)
+    // 1. [핵심] 상단바에 지속 고정(requireInteraction) 알림 즉시 표시!
     await reg.showNotification("🛒 [에너젠마트] 주말 초특가 세일 전단지 도착!", {
-      body: "국내산 1등급 생삼겹살 100g 1,290원 · 신선 왕란 1판 4,980원! 지금 터치하여 에너젠마트 특가 상품을 주문하세요.",
+      body: "국내산 1등급 생삼겹살 100g 1,290원 · 신선 왕란 1판 4,980원! 터치하여 특가 전단지를 확인하세요.",
       icon: "https://mart-platform.vercel.app/icon-192.png",
       badge: "https://mart-platform.vercel.app/icon-192.png",
       image: "https://mart-platform.vercel.app/test-flyer.png",
-      vibrate: [400, 150, 400, 150, 400],
-      requireInteraction: true,
+      vibrate: [300, 150, 300],
+      requireInteraction: true, // [상단바 고정]
+      tag: "mart-sale-sticky",
       renotify: true,
-      tag: "energen-direct-" + Date.now(),
       data: { url: "https://mart-platform.vercel.app/74.html" }
     });
 
-    // 2. 동시에 새 슬롯(ENERGEN-LIVE-01)에 최신 FCM 토큰을 등록하고 구글 FCM 서버에서도 원격 푸시 발송!
+    // 2. 원격 FCM 토큰 발송 등록
     const messaging = firebase.messaging();
     const token = await messaging.getToken({ vapidKey: VAPID_KEY, serviceWorkerRegistration: reg });
     if (token) {
@@ -113,35 +114,9 @@ async function fireNow() {
           platform: "android"
         })
       });
-      // Also register fixed slot ENERGEN-01022864150 so server can push anytime remotely!
-      await fetch(API_URL, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: "Bearer " + SUPABASE_KEY, apikey: SUPABASE_KEY },
-        body: JSON.stringify({
-          action: "register",
-          registration_type: "vehicle",
-          qr_code: "ENERGEN-01022864150",
-          car_number: "에너젠마트",
-          owner_phone: "01022864150",
-          push_token: token,
-          platform: "android"
-        })
-      });
-      // Fire remote FCM push after 3 seconds (so even if user locks screen, it rings!)
-      setTimeout(async () => {
-        await fetch(API_URL, {
-          method: "POST",
-          headers: { "Content-Type": "application/json", Authorization: "Bearer " + SUPABASE_KEY, apikey: SUPABASE_KEY },
-          body: JSON.stringify({
-            action: "request",
-            qr_code: slot,
-            caller_session_id: "energen_remote_" + Date.now()
-          })
-        });
-      }, 3000);
     }
 
-    st.innerHTML = "✅ <b>휴대폰 맨 위 상단 알림창</b>에 <b>[에너젠마트 주말 초특가 세일]</b> 웹푸시가 발송되었습니다!<br><br>👆 지금 휴대폰 맨 위 알림을 손가락으로 터치해 보십시오. 바로 에너젠마트 장바구니 매장이 열립니다!";
+    st.innerHTML = "✅ <b>휴대폰 맨 위 상단바</b>에 알림이 고정되었습니다!<br><br>👆 지금 상단 알림을 터치해 전단지를 열어보십시오.<br><b>전단지를 보고 나와도 상단바에서 사라지지 않고 그대로 살아있습니다!</b>";
   } catch (err) {
     st.textContent = "오류: " + (err.message || err);
   }
